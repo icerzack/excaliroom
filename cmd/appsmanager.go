@@ -1,11 +1,12 @@
 package cmd
 
 import (
-	"go.uber.org/zap"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
+
+	"go.uber.org/zap"
 )
 
 type AppsManager struct {

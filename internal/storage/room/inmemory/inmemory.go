@@ -2,14 +2,13 @@ package inmemory
 
 import (
 	"errors"
+
 	"go.uber.org/zap"
 
 	"github.com/Icerzack/excalidraw-ws-go/internal/room"
 )
 
-var (
-	ErrRoomNotFound = errors.New("room not found")
-)
+var ErrRoomNotFound = errors.New("room not found")
 
 type Storage struct {
 	data   map[string]*room.Room
