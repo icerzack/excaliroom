@@ -12,10 +12,7 @@ func main() {
 	logger, _ := zap.NewDevelopment()
 	defer logger.Sync()
 
-	configPath := os.Getenv("WS_CONFIG_PATH")
-	if configPath == "" {
-		configPath = "config.yaml"
-	}
+	configPath := os.Getenv("CONFIG_PATH")
 
 	appConfig, err := cmd.ParseConfig(configPath, logger)
 	if err != nil {

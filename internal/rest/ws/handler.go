@@ -208,6 +208,7 @@ func (ws *WebSocketHandler) registerUser(conn *websocket.Conn, request MessageCo
 		ws.logger.Debug("Failed to validate JWT", zap.Error(err))
 		return
 	}
+
 	// Check if the user is already connected
 	if v, _ := ws.userStorage.Get(userID); v != nil {
 		return
