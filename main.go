@@ -2,6 +2,7 @@ package main
 
 import (
 	"go.uber.org/zap"
+	"os"
 
 	"github.com/Icerzack/excalidraw-ws-go/cmd"
 	"github.com/Icerzack/excalidraw-ws-go/internal/rest"
@@ -11,9 +12,31 @@ func main() {
 	logger, _ := zap.NewDevelopment()
 	defer logger.Sync()
 
+	configPath := os.Getenv("WS_CONFIG_PATH")
+	if configPath == "" {
+		configPath = "config.yaml"
+	}
+
+	appConfig, err := cmd.ParseConfig(configPath, logger)
+	if err != nil {
+		return
+	}
+
+	switch appConfig.Apps.LogLevel {
+	case "DEBUG":
+		logger, _ = zap.NewDevelopment()
+	case "INFO":
+		logger, _ = zap.NewProduction()
+	default:
+		logger, _ = zap.NewDevelopment()
+	}
+
 	restApp := rest.NewRest(&rest.Config{
-		Port:             8080,
-		JwtValidationURL: "https://api.camelot.icerzack.space/api/v1/users/me",
+		Port:             appConfig.Apps.Rest.Port,
+		JwtValidationURL: appConfig.Apps.Rest.JWT.ValidationURL,
+		JwtHeaderName:    appConfig.Apps.Rest.JWT.HeaderName,
+		UsersStorageType: appConfig.Storage.Users.Type,
+		RoomsStorageType: appConfig.Storage.Rooms.Type,
 		Logger:           logger,
 	})
 

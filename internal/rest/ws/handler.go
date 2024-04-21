@@ -22,12 +22,20 @@ var (
 	ErrValidatingJWT  = errors.New("failed to validate jwt")
 )
 
+const (
+	EventConnect             = "connect"
+	EventUserConnected       = "userConnected"
+	EventUserDisconnected    = "userDisconnected"
+	EventUserFailedToConnect = "userFailedToConnect"
+	EventNewData             = "newData"
+)
+
 type WebSocketHandler struct {
 	// upgrader is used to upgrade the HTTP connection to a WebSocket connection
 	upgrader *websocket.Upgrader
 
-	// authHeaderName is the name of the header that will be used to pass the JWT token
-	authHeaderName string
+	// jwtHeaderName is the name of the header that will be used to pass the JWT token
+	jwtHeaderName string
 
 	// jwtValidationURL is the URL that will be used to validate the JWT token
 	jwtValidationURL string
@@ -44,7 +52,7 @@ type WebSocketHandler struct {
 func NewWebSocketHandler(
 	clientsStorage uStorage.Storage,
 	roomStorage rStorage.Storage,
-	authHeaderName string,
+	jwtHeaderName string,
 	jwtValidationURL string,
 	logger *zap.Logger,
 ) *WebSocketHandler {
@@ -56,7 +64,7 @@ func NewWebSocketHandler(
 		},
 		userStorage:      clientsStorage,
 		roomStorage:      roomStorage,
-		authHeaderName:   authHeaderName,
+		jwtHeaderName:    jwtHeaderName,
 		jwtValidationURL: jwtValidationURL,
 		logger:           logger,
 	}
@@ -86,7 +94,7 @@ func (ws *WebSocketHandler) Handle(w http.ResponseWriter, r *http.Request) {
 func (ws *WebSocketHandler) messageHandler(conn *websocket.Conn, msg []byte) {
 	message, err := messageDefiner(msg)
 	if err != nil {
-		ws.logger.Error("Failed to define message", zap.Error(err))
+		ws.logger.Debug("Failed to define message", zap.Error(err))
 		return
 	}
 
@@ -104,7 +112,7 @@ func (ws *WebSocketHandler) sendDataToRoom(conn *websocket.Conn, request Message
 	// Get the UserID from the JWT token
 	userID, err := ws.validateJWT(request.Jwt)
 	if err != nil {
-		ws.logger.Error("Failed to validate JWT", zap.Error(err))
+		ws.logger.Debug("Failed to validate JWT", zap.Error(err))
 		return
 	}
 
@@ -116,9 +124,10 @@ func (ws *WebSocketHandler) sendDataToRoom(conn *websocket.Conn, request Message
 	// Check if user belongs to the room
 	u, _ := ws.userStorage.Get(userID)
 	if u == nil || u.RoomID != request.BoardID {
-		ws.sendUserFailedToConnect(conn, "user not in this room")
+		ws.sendUserFailedToConnect(conn, "User not in this room")
 		return
 	}
+
 	// Get the room
 	currentRoom, _ := ws.roomStorage.Get(request.BoardID)
 	if currentRoom == nil {
@@ -143,7 +152,7 @@ func (ws *WebSocketHandler) sendDataToRoom(conn *websocket.Conn, request Message
 
 		err := u.Conn.WriteJSON(MessageNewDataResponse{
 			Message: Message{
-				Event: "newData",
+				Event: EventNewData,
 			},
 			BoardID: currentRoom.BoardID,
 			Data:    newData,
@@ -181,7 +190,7 @@ func (ws *WebSocketHandler) unregisterUser(conn *websocket.Conn) {
 	// Send the user disconnected message
 	ws.sendUserDisconnected(MessageUserDisconnectedResponse{
 		Message: Message{
-			Event: "userDisconnected",
+			Event: EventUserDisconnected,
 		},
 		BoardID: currentRoom.BoardID,
 		UserID:  u.ID,
@@ -196,7 +205,7 @@ func (ws *WebSocketHandler) registerUser(conn *websocket.Conn, request MessageCo
 	// Get the UserID from the JWT token
 	userID, err := ws.validateJWT(request.Jwt)
 	if err != nil {
-		ws.logger.Error("Failed to validate JWT", zap.Error(err))
+		ws.logger.Debug("Failed to validate JWT", zap.Error(err))
 		return
 	}
 	// Check if the user is already connected
@@ -228,13 +237,13 @@ func (ws *WebSocketHandler) registerUser(conn *websocket.Conn, request MessageCo
 	// Send the user connected message
 	ws.sendUserConnected(MessageUserConnectedResponse{
 		Message: Message{
-			Event: "userConnected",
+			Event: EventUserConnected,
 		},
 		BoardID: request.BoardID,
 		UserID:  newUser.ID,
 	})
 
-	ws.logger.Info("User registered and connected", zap.String("userID", newUser.ID))
+	ws.logger.Info("User registered", zap.String("userID", newUser.ID))
 }
 
 func (ws *WebSocketHandler) sendUserConnected(request MessageUserConnectedResponse) {
@@ -268,7 +277,7 @@ func (ws *WebSocketHandler) sendUserFailedToConnect(conn *websocket.Conn, reason
 	}
 	err = failedUser.Conn.WriteJSON(MessageUserFailedToConnectResponse{
 		Message: Message{
-			Event: "userFailedToConnect",
+			Event: EventUserFailedToConnect,
 		},
 		UserID: failedUser.ID,
 		Reason: reason,
@@ -303,7 +312,7 @@ func (ws *WebSocketHandler) sendUserDisconnected(request MessageUserDisconnected
 
 func (ws *WebSocketHandler) validateJWT(jwt string) (string, error) {
 	req, _ := http.NewRequestWithContext(context.Background(), "GET", ws.jwtValidationURL, nil)
-	req.Header.Set(ws.authHeaderName, jwt)
+	req.Header.Set(ws.jwtHeaderName, jwt)
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -314,13 +323,10 @@ func (ws *WebSocketHandler) validateJWT(jwt string) (string, error) {
 
 	switch resp.StatusCode {
 	case http.StatusUnauthorized:
-		ws.logger.Error("Unauthorized", zap.Error(ErrValidatingJWT))
 		return "", fmt.Errorf("unauthorized: %w", ErrValidatingJWT)
 	case http.StatusForbidden:
-		ws.logger.Error("Forbidden", zap.Error(ErrValidatingJWT))
 		return "", fmt.Errorf("forbidden: %w", ErrValidatingJWT)
 	case http.StatusInternalServerError:
-		ws.logger.Error("Internal server error", zap.Error(ErrValidatingJWT))
 		return "", fmt.Errorf("internal server error: %w", ErrValidatingJWT)
 	}
 
@@ -341,14 +347,14 @@ func messageDefiner(msg []byte) (interface{}, error) {
 		return nil, ErrInvalidMessage
 	}
 	switch message.Event {
-	case "connect":
+	case EventConnect:
 		var connectRequest MessageConnectRequest
 		if err := json.Unmarshal(msg, &connectRequest); err == nil {
 			return connectRequest, nil
 		} else {
 			return nil, err
 		}
-	case "newData":
+	case EventNewData:
 		var newData MessageNewDataRequest
 		if err := json.Unmarshal(msg, &newData); err == nil {
 			return newData, nil

@@ -3,6 +3,8 @@ package rest
 import (
 	"context"
 	"errors"
+	"github.com/Icerzack/excalidraw-ws-go/internal/storage/room"
+	"github.com/Icerzack/excalidraw-ws-go/internal/storage/user"
 	"net/http"
 	"strconv"
 
@@ -38,12 +40,11 @@ func (rest *Rest) Start() {
 	})
 
 	// Define the /ws endpoint
-	usersStorage := inmemUser.NewStorage(rest.config.Logger)
-	roomsStorage := inmemRoom.NewStorage(rest.config.Logger)
+	usersStorage, roomsStorage := rest.defineStorage()
 	wsServer := ws.NewWebSocketHandler(
 		usersStorage,
 		roomsStorage,
-		"X-Auth-Token", // This is the header that will be used to pass the JWT token
+		rest.config.JwtHeaderName,
 		rest.config.JwtValidationURL,
 		rest.config.Logger,
 	)
@@ -61,8 +62,25 @@ func (rest *Rest) Start() {
 }
 
 func (rest *Rest) Stop() {
-	// Implement the stop logic
 	if err := rest.server.Shutdown(context.Background()); err != nil {
 		rest.config.Logger.Error("server error", zap.Error(err))
 	}
+}
+
+func (rest *Rest) defineStorage() (*inmemUser.Storage, *inmemRoom.Storage) {
+	var usersStorage *inmemUser.Storage
+	var roomsStorage *inmemRoom.Storage
+
+	switch rest.config.UsersStorageType {
+	case user.InMemoryStorageType:
+		rest.config.Logger.Info("Using in-memory storage for users")
+		usersStorage = inmemUser.NewStorage(rest.config.Logger)
+	}
+	switch rest.config.RoomsStorageType {
+	case room.InMemoryStorageType:
+		rest.config.Logger.Info("Using in-memory storage for rooms")
+		roomsStorage = inmemRoom.NewStorage(rest.config.Logger)
+	}
+
+	return usersStorage, roomsStorage
 }

@@ -1,0 +1,13 @@
+apps:
+  log-level: "DEBUG"
+  rest:
+    port: 8080
+    jwt:
+      validation-url: "https://api.camelot.icerzack.space/api/v1/users/me"
+      header-name: "X-Auth-Token"
+
+storage:
+  users:
+    type: "in-memory"
+  rooms:
+    type: "in-memory"
