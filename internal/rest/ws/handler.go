@@ -353,14 +353,14 @@ func messageDefiner(msg []byte) (interface{}, error) {
 		if err := json.Unmarshal(msg, &connectRequest); err == nil {
 			return connectRequest, nil
 		} else {
-			return nil, err
+			return nil, fmt.Errorf("error Unmarshaling MessageConnectRequest: %w", err)
 		}
 	case EventNewData:
 		var newData MessageNewDataRequest
 		if err := json.Unmarshal(msg, &newData); err == nil {
 			return newData, nil
 		} else {
-			return nil, err
+			return nil, fmt.Errorf("error Unmarshaling MessageNewDataRequest: %w", err)
 		}
 	}
 	return nil, ErrInvalidMessage

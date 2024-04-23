@@ -3,8 +3,6 @@ package rest
 import (
 	"context"
 	"errors"
-	"github.com/Icerzack/excalidraw-ws-go/internal/storage/room"
-	"github.com/Icerzack/excalidraw-ws-go/internal/storage/user"
 	"net/http"
 	"strconv"
 
@@ -12,7 +10,9 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/Icerzack/excalidraw-ws-go/internal/rest/ws"
+	"github.com/Icerzack/excalidraw-ws-go/internal/storage/room"
 	inmemRoom "github.com/Icerzack/excalidraw-ws-go/internal/storage/room/inmemory"
+	"github.com/Icerzack/excalidraw-ws-go/internal/storage/user"
 	inmemUser "github.com/Icerzack/excalidraw-ws-go/internal/storage/user/inmemory"
 )
 
@@ -75,9 +75,15 @@ func (rest *Rest) defineStorage() (*inmemUser.Storage, *inmemRoom.Storage) {
 	case user.InMemoryStorageType:
 		rest.config.Logger.Info("Using in-memory storage for users")
 		usersStorage = inmemUser.NewStorage(rest.config.Logger)
+	default:
+		rest.config.Logger.Info("Using in-memory storage for users")
+		usersStorage = inmemUser.NewStorage(rest.config.Logger)
 	}
 	switch rest.config.RoomsStorageType {
 	case room.InMemoryStorageType:
+		rest.config.Logger.Info("Using in-memory storage for rooms")
+		roomsStorage = inmemRoom.NewStorage(rest.config.Logger)
+	default:
 		rest.config.Logger.Info("Using in-memory storage for rooms")
 		roomsStorage = inmemRoom.NewStorage(rest.config.Logger)
 	}

@@ -1,8 +1,9 @@
 package main
 
 import (
-	"go.uber.org/zap"
 	"os"
+
+	"go.uber.org/zap"
 
 	"github.com/Icerzack/excalidraw-ws-go/cmd"
 	"github.com/Icerzack/excalidraw-ws-go/internal/rest"
@@ -10,6 +11,7 @@ import (
 
 func main() {
 	logger, _ := zap.NewDevelopment()
+	//nolint:errcheck
 	defer logger.Sync()
 
 	configPath := os.Getenv("CONFIG_PATH")
