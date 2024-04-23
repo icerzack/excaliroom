@@ -26,7 +26,6 @@ func NewAppsManager(logger *zap.Logger) *AppsManager {
 
 func (am *AppsManager) Register(name string, app App) {
 	am.apps[name] = app
-	am.logger.Info("App registered", zap.String("name", name))
 }
 
 func (am *AppsManager) Run(name string) {
