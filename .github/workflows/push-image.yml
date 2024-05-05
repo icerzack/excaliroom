@@ -27,4 +27,4 @@ jobs:
           context: .
           file: ./build/Dockerfile
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/excalidraw-ws-go:latest
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/excaliroom:latest
