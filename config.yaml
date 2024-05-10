@@ -1,10 +1,11 @@
 apps:
-  log_level: "INFO"
+  log_level: "DEBUG"
   rest:
     port: 8080
-    jwt:
-      validation_url: "https://api.camelot.icerzack.space/api/v1/users/me"
-      header_name: "X-Auth-Token"
+    validation:
+      jwt_header_name: "X-Auth-Token"
+      jwt_url: "https://api-stg.camelot.icerzack.space/api/v1/users/about/me"
+      board_url: "https://api-stg.camelot.icerzack.space/api/v1/boards"
 
 storage:
   users:

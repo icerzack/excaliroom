@@ -23,6 +23,19 @@ type MessageNewDataRequest struct {
 
 type MessageUserConnectedResponse struct {
 	Message
+	BoardID  string   `json:"board_id"`
+	UserIDs  []string `json:"user_ids"`
+	LeaderID string   `json:"leader_id"`
+}
+
+type MessageSetLeaderRequest struct {
+	Message
+	BoardID string `json:"board_id"`
+	Jwt     string `json:"jwt"`
+}
+
+type MessageSetLeaderResponse struct {
+	Message
 	BoardID string `json:"board_id"`
 	UserID  string `json:"user_id"`
 }
@@ -35,8 +48,9 @@ type MessageUserFailedToConnectResponse struct {
 
 type MessageUserDisconnectedResponse struct {
 	Message
-	BoardID string `json:"board_id"`
-	UserID  string `json:"user_id"`
+	BoardID  string   `json:"board_id"`
+	UserIDs  []string `json:"user_ids"`
+	LeaderID string   `json:"leader_id"`
 }
 
 type MessageNewDataResponse struct {

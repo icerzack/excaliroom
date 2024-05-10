@@ -2,7 +2,9 @@ version: "3.8"
 
 services:
   app:
-    image: ws-go:latest
+    build:
+        context: .
+        dockerfile: build/Dockerfile
     environment:
       - CONFIG_PATH=config.yaml
     ports:

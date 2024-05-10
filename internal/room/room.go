@@ -17,6 +17,9 @@ type Room struct {
 	// Users is a map of users in the room
 	Users []*user.User
 
+	// LeaderID is the unique identifier of the leader of the room
+	LeaderID string
+
 	// Elements is a string that represents the elements of the board
 	Elements string
 
@@ -25,31 +28,53 @@ type Room struct {
 
 	// mtx is a mutex
 	mtx *sync.RWMutex
+
+	RoomMutex *sync.Mutex
 }
 
 // NewRoom creates a new room.
 func NewRoom(boardID string) *Room {
 	return &Room{
-		ID:      generateRandomID(),
-		BoardID: boardID,
-		Users:   make([]*user.User, 0),
-		mtx:     &sync.RWMutex{},
+		ID:        generateRandomID(),
+		BoardID:   boardID,
+		Users:     make([]*user.User, 0),
+		LeaderID:  "0",
+		mtx:       &sync.RWMutex{},
+		RoomMutex: &sync.Mutex{},
 	}
 }
 
 func (r *Room) AddUser(newUser *user.User) {
 	// Add user to the room
+	r.mtx.Lock()
+	defer r.mtx.Unlock()
 	r.Users = append(r.Users, newUser)
 }
 
 func (r *Room) RemoveUser(userID string) {
 	// Remove user from the room
+	r.mtx.Lock()
+	defer r.mtx.Unlock()
 	for i, u := range r.Users {
 		if u.ID == userID {
 			r.Users = append(r.Users[:i], r.Users[i+1:]...)
 			break
 		}
 	}
+}
+
+func (r *Room) GetUsers() []*user.User {
+	// Get users of the room
+	r.mtx.RLock()
+	defer r.mtx.RUnlock()
+	return r.Users
+}
+
+func (r *Room) SetLeader(leaderID string) {
+	// Set leader of the room
+	r.mtx.Lock()
+	defer r.mtx.Unlock()
+	r.LeaderID = leaderID
 }
 
 func (r *Room) SetElements(elements string) {

@@ -8,11 +8,14 @@ type Config struct {
 	// Port is the port where the server will listen
 	Port int
 
+	// JwtHeaderName is the name of the header where the JWT is stored
+	JwtHeaderName string
+
 	// JwtValidationURL is the URL which returns user id based on the JWT
 	JwtValidationURL string
 
-	// JwtHeaderName is the name of the header where the JWT is stored
-	JwtHeaderName string
+	// BoardValidationURL is the URL which returns the board based on the board id
+	BoardValidationURL string
 
 	// UsersStorageType is the type of the storage that will be used
 	UsersStorageType string

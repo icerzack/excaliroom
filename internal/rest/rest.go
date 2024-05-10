@@ -46,6 +46,7 @@ func (rest *Rest) Start() {
 		roomsStorage,
 		rest.config.JwtHeaderName,
 		rest.config.JwtValidationURL,
+		rest.config.BoardValidationURL,
 		rest.config.Logger,
 	)
 	router.HandleFunc("/ws", wsServer.Handle)

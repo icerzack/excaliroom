@@ -27,16 +27,17 @@ func main() {
 	case "INFO":
 		logger, _ = zap.NewProduction()
 	default:
-		logger, _ = zap.NewDevelopment()
+		logger = zap.NewNop()
 	}
 
 	restApp := rest.NewRest(&rest.Config{
-		Port:             appConfig.Apps.Rest.Port,
-		JwtValidationURL: appConfig.Apps.Rest.JWT.ValidationURL,
-		JwtHeaderName:    appConfig.Apps.Rest.JWT.HeaderName,
-		UsersStorageType: appConfig.Storage.Users.Type,
-		RoomsStorageType: appConfig.Storage.Rooms.Type,
-		Logger:           logger,
+		Port:               appConfig.Apps.Rest.Port,
+		JwtValidationURL:   appConfig.Apps.Rest.Validation.JWTValidationURL,
+		JwtHeaderName:      appConfig.Apps.Rest.Validation.JWTHeaderName,
+		BoardValidationURL: appConfig.Apps.Rest.Validation.BoardValidationURL,
+		UsersStorageType:   appConfig.Storage.Users.Type,
+		RoomsStorageType:   appConfig.Storage.Rooms.Type,
+		Logger:             logger,
 	})
 
 	appsManager := cmd.NewAppsManager(logger)

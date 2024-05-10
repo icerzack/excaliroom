@@ -12,11 +12,12 @@ type Config struct {
 	Apps struct {
 		LogLevel string `yaml:"log_level"`
 		Rest     struct {
-			Port int `yaml:"port"`
-			JWT  struct {
-				ValidationURL string `yaml:"validation_url"`
-				HeaderName    string `yaml:"header_name"`
-			} `yaml:"jwt"`
+			Port       int `yaml:"port"`
+			Validation struct {
+				JWTHeaderName      string `yaml:"jwt_header_name"`
+				JWTValidationURL   string `yaml:"jwt_url"`
+				BoardValidationURL string `yaml:"board_url"`
+			} `yaml:"validation"`
 		} `yaml:"rest"`
 	} `yaml:"apps"`
 	Storage struct {
