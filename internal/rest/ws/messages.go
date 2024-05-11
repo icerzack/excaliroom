@@ -21,6 +21,7 @@ type MessageNewDataRequest struct {
 	Data    Data   `json:"data"`
 }
 
+//nolint:tagliatelle
 type MessageUserConnectedResponse struct {
 	Message
 	BoardID  string   `json:"board_id"`
@@ -46,6 +47,7 @@ type MessageUserFailedToConnectResponse struct {
 	Reason string `json:"reason"`
 }
 
+//nolint:tagliatelle
 type MessageUserDisconnectedResponse struct {
 	Message
 	BoardID  string   `json:"board_id"`

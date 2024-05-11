@@ -1,0 +1,14 @@
+apps:
+  log_level: "DEBUG"
+  rest:
+    port: 8080
+    validation:
+      jwt_header_name: "<YOUR_JWT_HEADER_NAME>"
+      jwt_validation_url: "<YOUR_JWT_VALIDATION_URL>"
+      board_validation_url: "<YOUR_BOARD_VALIDATION_URL>"
+
+storage:
+  users:
+    type: "in-memory"
+  rooms:
+    type: "in-memory"

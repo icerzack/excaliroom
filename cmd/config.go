@@ -15,8 +15,8 @@ type Config struct {
 			Port       int `yaml:"port"`
 			Validation struct {
 				JWTHeaderName      string `yaml:"jwt_header_name"`
-				JWTValidationURL   string `yaml:"jwt_url"`
-				BoardValidationURL string `yaml:"board_url"`
+				JWTValidationURL   string `yaml:"jwt_validation_url"`
+				BoardValidationURL string `yaml:"board_validation_url"`
 			} `yaml:"validation"`
 		} `yaml:"rest"`
 	} `yaml:"apps"`

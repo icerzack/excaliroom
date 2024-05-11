@@ -109,13 +109,14 @@ func (ws *WebSocketHandler) messageHandler(conn *websocket.Conn, msg []byte) {
 	case MessageConnectRequest:
 		ws.registerUser(conn, v)
 	case MessageNewDataRequest:
-		ws.sendDataToRoom(conn, v)
+		ws.sendDataToRoom(v)
 	case MessageSetLeaderRequest:
-		ws.setLeader(conn, v)
+		ws.setLeader(v)
 	}
 }
 
-func (ws *WebSocketHandler) setLeader(conn *websocket.Conn, request MessageSetLeaderRequest) {
+//nolint:cyclop
+func (ws *WebSocketHandler) setLeader(request MessageSetLeaderRequest) {
 	// Get the UserID from the JWT token
 	userID, err := ws.validateJWT(request.Jwt)
 	if err != nil {
@@ -146,13 +147,14 @@ func (ws *WebSocketHandler) setLeader(conn *websocket.Conn, request MessageSetLe
 	}
 
 	// Set the leader
-	if currentRoom.LeaderID == "0" {
+	switch currentRoom.LeaderID {
+	case "0":
 		currentRoom.SetLeader(userID)
 		ws.logger.Debug("User set as the leader", zap.String("userID", userID), zap.String("boardID", request.BoardID))
-	} else if currentRoom.LeaderID == userID {
+	case userID:
 		currentRoom.SetLeader("0")
 		ws.logger.Debug("Leader removed", zap.String("userID", userID), zap.String("boardID", request.BoardID))
-	} else {
+	default:
 		return
 	}
 
@@ -177,7 +179,8 @@ func (ws *WebSocketHandler) setLeader(conn *websocket.Conn, request MessageSetLe
 	}
 }
 
-func (ws *WebSocketHandler) sendDataToRoom(conn *websocket.Conn, request MessageNewDataRequest) {
+//nolint:cyclop
+func (ws *WebSocketHandler) sendDataToRoom(request MessageNewDataRequest) {
 	// Get the UserID from the JWT token
 	userID, err := ws.validateJWT(request.Jwt)
 	if err != nil {
@@ -278,7 +281,7 @@ func (ws *WebSocketHandler) unregisterUser(conn *websocket.Conn) {
 	}
 
 	// Get the users ids
-	var userIDs []string
+	userIDs := make([]string, 0)
 	for _, u := range currentRoom.GetUsers() {
 		userIDs = append(userIDs, u.ID)
 	}
@@ -304,7 +307,8 @@ func (ws *WebSocketHandler) registerUser(conn *websocket.Conn, request MessageCo
 
 	// Check if the user has access to the board
 	if !ws.validateBoardAccess(request.BoardID, request.Jwt) {
-		ws.logger.Debug("User not allowed to access this board", zap.String("userID", userID), zap.String("boardID", request.BoardID))
+		ws.logger.Debug("User not allowed to access this board",
+			zap.String("userID", userID), zap.String("boardID", request.BoardID))
 		return
 	}
 
@@ -335,7 +339,7 @@ func (ws *WebSocketHandler) registerUser(conn *websocket.Conn, request MessageCo
 	currentRoom.AddUser(newUser)
 
 	// Get the users ids
-	var userIDs []string
+	userIDs := make([]string, 0)
 	for _, u := range currentRoom.GetUsers() {
 		userIDs = append(userIDs, u.ID)
 	}
@@ -373,26 +377,6 @@ func (ws *WebSocketHandler) sendUserConnected(request MessageUserConnectedRespon
 			_ = ws.userStorage.Delete(currentUser.ID)
 		}
 	}
-}
-
-func (ws *WebSocketHandler) sendUserFailedToConnect(conn *websocket.Conn, reason string) {
-	failedUser, err := ws.userStorage.GetWhere(func(u *user.User) bool {
-		return u.Conn == conn
-	})
-	if err != nil {
-		return
-	}
-	err = failedUser.Conn.WriteJSON(MessageUserFailedToConnectResponse{
-		Message: Message{
-			Event: EventUserFailedToConnect,
-		},
-		UserID: failedUser.ID,
-		Reason: reason,
-	})
-	if err != nil {
-		return
-	}
-	failedUser.Conn.Close()
 }
 
 func (ws *WebSocketHandler) sendUserDisconnected(request MessageUserDisconnectedResponse) {
