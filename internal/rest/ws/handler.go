@@ -148,8 +148,10 @@ func (ws *WebSocketHandler) setLeader(conn *websocket.Conn, request MessageSetLe
 	// Set the leader
 	if currentRoom.LeaderID == "0" {
 		currentRoom.SetLeader(userID)
+		ws.logger.Debug("User set as the leader", zap.String("userID", userID), zap.String("boardID", request.BoardID))
 	} else if currentRoom.LeaderID == userID {
 		currentRoom.SetLeader("0")
+		ws.logger.Debug("Leader removed", zap.String("userID", userID), zap.String("boardID", request.BoardID))
 	} else {
 		return
 	}
@@ -166,15 +168,13 @@ func (ws *WebSocketHandler) setLeader(conn *websocket.Conn, request MessageSetLe
 				Event: EventSetLeader,
 			},
 			BoardID: request.BoardID,
-			UserID:  userID,
+			UserID:  currentRoom.LeaderID,
 		})
 		if err != nil {
 			// Remove the user from the storage
 			_ = ws.userStorage.Delete(currentUser.ID)
 		}
 	}
-
-	ws.logger.Debug("User set as the leader", zap.String("userID", userID), zap.String("boardID", request.BoardID))
 }
 
 func (ws *WebSocketHandler) sendDataToRoom(conn *websocket.Conn, request MessageNewDataRequest) {
