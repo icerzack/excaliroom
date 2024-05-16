@@ -1,6 +1,6 @@
 <p align="center">
   <h1 align="center">Excaliroom</h1>
-  <p align="center">A simple WebSocket server for collaborative drawing with Excalidraw.</p>
+  <p align="center">A simple WebSocket server for collaborative drawing with Excalidraw</p>
 </p>
 
 ---
@@ -18,7 +18,6 @@ It uses WebSockets to communicate between clients and broadcast the changes to a
     - [JWT and Board URLs](#jwt-and-board-urls)
     - [Storage](#storage)
 - [Installation](#installation)
-  - [Configuration](#configuration)
   - [Docker](#docker)
   - [Docker Compose](#docker-compose)
   - [Build Go binary](#build-go-binary)
