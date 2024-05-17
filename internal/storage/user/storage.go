@@ -1,7 +1,7 @@
 package user
 
 import (
-	"github.com/Icerzack/excalidraw-ws-go/internal/models"
+	"github.com/Icerzack/excaliroom/internal/models"
 )
 
 const (

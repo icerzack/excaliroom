@@ -38,11 +38,11 @@ type Config struct {
 	} `yaml:"storage"`
 	Cache struct {
 		Type          string `yaml:"type"`
-		TTL           int    `yaml:"ttl"`
+		TTL           int64  `yaml:"ttl"`
 		RedisAddress  string `yaml:"redis_address"`
 		RedisPassword string `yaml:"redis_password"`
 		RedisDB       int    `yaml:"redis_db"`
-	}
+	} `yaml:"cache"`
 }
 
 func ParseConfig(path string) (*Config, error) {

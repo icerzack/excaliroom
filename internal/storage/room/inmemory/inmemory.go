@@ -2,10 +2,11 @@ package inmemory
 
 import (
 	"errors"
-	"github.com/Icerzack/excalidraw-ws-go/internal/models"
 	"sync"
 
 	"go.uber.org/zap"
+
+	"github.com/Icerzack/excaliroom/internal/models"
 )
 
 var ErrRoomNotFound = errors.New("room not found")

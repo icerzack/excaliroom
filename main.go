@@ -2,14 +2,14 @@ package main
 
 import (
 	"fmt"
-	"github.com/Icerzack/excalidraw-ws-go/internal/utils"
-	"go.uber.org/zap/zapcore"
 	"os"
 
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
-	"github.com/Icerzack/excalidraw-ws-go/cmd"
-	"github.com/Icerzack/excalidraw-ws-go/internal/rest"
+	"github.com/Icerzack/excaliroom/cmd"
+	"github.com/Icerzack/excaliroom/internal/rest"
+	"github.com/Icerzack/excaliroom/internal/utils"
 )
 
 func main() {
@@ -48,6 +48,7 @@ func main() {
 		UsersStorageType:   appConfig.Storage.Users.Type,
 		RoomsStorageType:   appConfig.Storage.Rooms.Type,
 		CacheType:          appConfig.Cache.Type,
+		CacheTTL:           appConfig.Cache.TTL,
 		Logger:             logger,
 	})
 

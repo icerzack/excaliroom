@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"fmt"
+
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -35,7 +37,7 @@ func NewCustomLogger(level zapcore.Level, outputToFiles bool) (*zap.Logger, erro
 
 	logger, err := config.Build()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to create logger %w", err)
 	}
 
 	return logger, nil

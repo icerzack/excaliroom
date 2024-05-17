@@ -3,19 +3,19 @@ package rest
 import (
 	"context"
 	"errors"
-	"github.com/Icerzack/excalidraw-ws-go/internal/cache"
-	"github.com/Icerzack/excalidraw-ws-go/internal/cache/inmemory"
 	"net/http"
 	"strconv"
 
-	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 
-	"github.com/Icerzack/excalidraw-ws-go/internal/rest/ws"
-	"github.com/Icerzack/excalidraw-ws-go/internal/storage/room"
-	inmemRoom "github.com/Icerzack/excalidraw-ws-go/internal/storage/room/inmemory"
-	"github.com/Icerzack/excalidraw-ws-go/internal/storage/user"
-	inmemUser "github.com/Icerzack/excalidraw-ws-go/internal/storage/user/inmemory"
+	"github.com/Icerzack/excaliroom/internal/cache"
+	"github.com/Icerzack/excaliroom/internal/cache/inmemory"
+	"github.com/Icerzack/excaliroom/internal/rest/ws"
+	"github.com/Icerzack/excaliroom/internal/storage/room"
+	inmemRoom "github.com/Icerzack/excaliroom/internal/storage/room/inmemory"
+	"github.com/Icerzack/excaliroom/internal/storage/user"
+	inmemUser "github.com/Icerzack/excaliroom/internal/storage/user/inmemory"
 )
 
 type Rest struct {
@@ -49,6 +49,7 @@ func (rest *Rest) Start() {
 		usersStorage,
 		roomsStorage,
 		selectedCache,
+		rest.config.CacheTTL,
 		rest.config.JwtHeaderName,
 		rest.config.JwtValidationURL,
 		rest.config.BoardValidationURL,

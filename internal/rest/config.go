@@ -26,5 +26,8 @@ type Config struct {
 	// CacheType is the type of the cache that will be used
 	CacheType string
 
+	// CacheTTL is the time to live of the cache
+	CacheTTL int64
+
 	Logger *zap.Logger
 }

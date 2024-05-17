@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/Icerzack/excalidraw-ws-go/internal/cache"
-	"github.com/Icerzack/excalidraw-ws-go/internal/models"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -14,8 +12,10 @@ import (
 	"github.com/gorilla/websocket"
 	"go.uber.org/zap"
 
-	rStorage "github.com/Icerzack/excalidraw-ws-go/internal/storage/room"
-	uStorage "github.com/Icerzack/excalidraw-ws-go/internal/storage/user"
+	"github.com/Icerzack/excaliroom/internal/cache"
+	"github.com/Icerzack/excaliroom/internal/models"
+	"github.com/Icerzack/excaliroom/internal/storage/room"
+	"github.com/Icerzack/excaliroom/internal/storage/user"
 )
 
 var (
@@ -45,21 +45,25 @@ type WebSocketHandler struct {
 	boardValidationURL string
 
 	// userStorage is used to store the clients
-	userStorage uStorage.Storage
+	userStorage user.Storage
 
 	// roomStorage is used to store the rooms
-	roomStorage rStorage.Storage
+	roomStorage room.Storage
 
 	// cache is used to store the validation results
 	cache cache.Cache
+
+	// cacheTTLInSeconds is the time to live of the cache
+	cacheTTLInSeconds int64
 
 	logger *zap.Logger
 }
 
 func NewWebSocketHandler(
-	clientsStorage uStorage.Storage,
-	roomStorage rStorage.Storage,
+	clientsStorage user.Storage,
+	roomStorage room.Storage,
 	cache cache.Cache,
+	cacheTTLInSeconds int64,
 	jwtHeaderName string,
 	jwtValidationURL string,
 	boardValidationURL string,
@@ -77,6 +81,7 @@ func NewWebSocketHandler(
 		jwtValidationURL:   jwtValidationURL,
 		boardValidationURL: boardValidationURL,
 		cache:              cache,
+		cacheTTLInSeconds:  cacheTTLInSeconds,
 		logger:             logger,
 	}
 }
@@ -121,27 +126,10 @@ func (ws *WebSocketHandler) messageHandler(conn *websocket.Conn, msg []byte) {
 
 //nolint:cyclop
 func (ws *WebSocketHandler) setLeader(request MessageSetLeaderRequest) {
-	var userID string
-
-	// Check if the user is in cache
-	if v, err := ws.cache.Get(request.Jwt); err != nil && v == nil {
-		// Get the UserID from the JWT token
-		userID, err = ws.validateJWT(request.Jwt)
-		if err != nil {
-			ws.logger.Debug("Failed to validate JWT", zap.Error(err))
-			return
-		}
-
-		// Check if the user has access to the board
-		if !ws.validateBoardAccess(request.BoardID, request.Jwt) {
-			ws.logger.Debug("User doesn't have access to the board", zap.String("userID", userID), zap.String("boardID", request.BoardID))
-			return
-		}
-
-		// Store the validation result
-		_ = ws.cache.Set(request.Jwt, userID)
-	} else {
-		userID = v.(string)
+	userID, err := ws.cacheOrValidate(request.Jwt, request.BoardID)
+	if err != nil {
+		ws.logger.Error("Failed to validate", zap.Error(err))
+		return
 	}
 
 	// Check if the user is registered
@@ -194,29 +182,11 @@ func (ws *WebSocketHandler) setLeader(request MessageSetLeaderRequest) {
 	}
 }
 
-//nolint:cyclop
 func (ws *WebSocketHandler) sendDataToRoom(request MessageNewDataRequest) {
-	var userID string
-
-	// Check if the user is in cache
-	if v, err := ws.cache.Get(request.Jwt); err != nil && v == nil {
-		// Get the UserID from the JWT token
-		userID, err = ws.validateJWT(request.Jwt)
-		if err != nil {
-			ws.logger.Debug("Failed to validate JWT", zap.Error(err))
-			return
-		}
-
-		// Check if the user has access to the board
-		if !ws.validateBoardAccess(request.BoardID, request.Jwt) {
-			ws.logger.Debug("User doesn't have access to the board", zap.String("userID", userID), zap.String("boardID", request.BoardID))
-			return
-		}
-
-		// Store the validation result
-		_ = ws.cache.Set(request.Jwt, userID)
-	} else {
-		userID = v.(string)
+	userID, err := ws.cacheOrValidate(request.Jwt, request.BoardID)
+	if err != nil {
+		ws.logger.Error("Failed to validate", zap.Error(err))
+		return
 	}
 
 	// Check if the user is registered
@@ -324,27 +294,10 @@ func (ws *WebSocketHandler) unregisterUser(conn *websocket.Conn) {
 }
 
 func (ws *WebSocketHandler) registerUser(conn *websocket.Conn, request MessageConnectRequest) {
-	var userID string
-
-	// Check if the user is in cache
-	if v, err := ws.cache.Get(request.Jwt); err != nil && v == nil {
-		// Get the UserID from the JWT token
-		userID, err = ws.validateJWT(request.Jwt)
-		if err != nil {
-			ws.logger.Debug("Failed to validate JWT", zap.Error(err))
-			return
-		}
-
-		// Check if the user has access to the board
-		if !ws.validateBoardAccess(request.BoardID, request.Jwt) {
-			ws.logger.Debug("User doesn't have access to the board", zap.String("userID", userID), zap.String("boardID", request.BoardID))
-			return
-		}
-
-		// Store the validation result
-		_ = ws.cache.Set(request.Jwt, userID)
-	} else {
-		userID = v.(string)
+	userID, err := ws.cacheOrValidate(request.Jwt, request.BoardID)
+	if err != nil {
+		ws.logger.Error("Failed to validate", zap.Error(err))
+		return
 	}
 
 	// Check if the user is already connected
@@ -365,7 +318,7 @@ func (ws *WebSocketHandler) registerUser(conn *websocket.Conn, request MessageCo
 		RoomID: request.BoardID,
 		Conn:   conn,
 	}
-	err := ws.userStorage.Set(newUser.ID, newUser)
+	err = ws.userStorage.Set(newUser.ID, newUser)
 	if err != nil {
 		return
 	}
@@ -520,4 +473,44 @@ func messageDefiner(msg []byte) (interface{}, error) {
 		}
 	}
 	return nil, ErrInvalidMessage
+}
+
+//nolint:nestif
+func (ws *WebSocketHandler) cacheOrValidate(jwt, boardID string) (string, error) {
+	var userID string
+
+	// Check if the user is in cache
+	if v, err := ws.cache.Get(jwt); v == nil {
+		if err != nil {
+			ws.logger.Error("Failed to get from cache", zap.Error(err))
+			return "", fmt.Errorf("failed to get from cache: %w", err)
+		}
+		// Get the UserID from the JWT token
+		userID, err = ws.validateJWT(jwt)
+		if err != nil {
+			ws.logger.Error("Failed to validate JWT", zap.Error(err))
+			return "", fmt.Errorf("failed to validate JWT: %w", err)
+		}
+
+		// Check if the user has access to the board
+		if !ws.validateBoardAccess(boardID, jwt) {
+			ws.logger.Debug("User doesn't have access to the board",
+				zap.String("userID", userID), zap.String("boardID", boardID))
+			return "", fmt.Errorf("user doesn't have access to the board: %w", err)
+		}
+
+		// Store the validation result
+		_ = ws.cache.SetWithTTL(jwt, userID, ws.cacheTTLInSeconds)
+	} else {
+		if err != nil {
+			ws.logger.Error("Failed to get from cache", zap.Error(err))
+			return "", fmt.Errorf("failed to get from cache: %w", err)
+		}
+		var ok bool
+		userID, ok = v.(string)
+		if !ok {
+			return "", fmt.Errorf("failed to get from cache: %w", err)
+		}
+	}
+	return userID, nil
 }
