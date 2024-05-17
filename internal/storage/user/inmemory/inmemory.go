@@ -2,17 +2,16 @@ package inmemory
 
 import (
 	"errors"
+	"github.com/Icerzack/excalidraw-ws-go/internal/models"
 	"sync"
 
 	"go.uber.org/zap"
-
-	"github.com/Icerzack/excalidraw-ws-go/internal/user"
 )
 
 var ErrUserNotFound = errors.New("user not found")
 
 type Storage struct {
-	data   map[string]*user.User
+	data   map[string]*models.User
 	logger *zap.Logger
 
 	mtx *sync.Mutex
@@ -20,13 +19,13 @@ type Storage struct {
 
 func NewStorage(logger *zap.Logger) *Storage {
 	return &Storage{
-		data:   make(map[string]*user.User),
+		data:   make(map[string]*models.User),
 		logger: logger,
 		mtx:    &sync.Mutex{},
 	}
 }
 
-func (s *Storage) Set(key string, value *user.User) error {
+func (s *Storage) Set(key string, value *models.User) error {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 	s.data[key] = value
@@ -34,7 +33,7 @@ func (s *Storage) Set(key string, value *user.User) error {
 	return nil
 }
 
-func (s *Storage) Get(key string) (*user.User, error) {
+func (s *Storage) Get(key string) (*models.User, error) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 	v, ok := s.data[key]
@@ -53,7 +52,7 @@ func (s *Storage) Delete(key string) error {
 	return nil
 }
 
-func (s *Storage) GetWhere(predicate func(*user.User) bool) (*user.User, error) {
+func (s *Storage) GetWhere(predicate func(*models.User) bool) (*models.User, error) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 	for _, v := range s.data {

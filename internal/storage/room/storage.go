@@ -1,7 +1,7 @@
 package room
 
 import (
-	"github.com/Icerzack/excalidraw-ws-go/internal/room"
+	"github.com/Icerzack/excalidraw-ws-go/internal/models"
 )
 
 const (
@@ -9,7 +9,7 @@ const (
 )
 
 type Storage interface {
-	Set(key string, value *room.Room) error
-	Get(key string) (*room.Room, error)
+	Set(key string, value *models.Room) error
+	Get(key string) (*models.Room, error)
 	Delete(key string) error
 }

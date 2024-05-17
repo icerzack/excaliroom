@@ -2,8 +2,9 @@ version: "3.8"
 
 services:
   app:
-    image: icerzack/excaliroom:latest
-    platform: linux/amd64
+    build:
+        context: .
+        dockerfile: build/Dockerfile
     environment:
       - CONFIG_PATH=config.yaml
     ports:

@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Icerzack/excalidraw-ws-go/internal/cache"
+	"github.com/Icerzack/excalidraw-ws-go/internal/models"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -12,10 +14,8 @@ import (
 	"github.com/gorilla/websocket"
 	"go.uber.org/zap"
 
-	"github.com/Icerzack/excalidraw-ws-go/internal/room"
 	rStorage "github.com/Icerzack/excalidraw-ws-go/internal/storage/room"
 	uStorage "github.com/Icerzack/excalidraw-ws-go/internal/storage/user"
-	"github.com/Icerzack/excalidraw-ws-go/internal/user"
 )
 
 var (
@@ -24,12 +24,11 @@ var (
 )
 
 const (
-	EventConnect             = "connect"
-	EventUserConnected       = "userConnected"
-	EventUserDisconnected    = "userDisconnected"
-	EventSetLeader           = "setLeader"
-	EventUserFailedToConnect = "userFailedToConnect"
-	EventNewData             = "newData"
+	EventConnect          = "connect"
+	EventUserConnected    = "userConnected"
+	EventUserDisconnected = "userDisconnected"
+	EventSetLeader        = "setLeader"
+	EventNewData          = "newData"
 )
 
 type WebSocketHandler struct {
@@ -51,12 +50,16 @@ type WebSocketHandler struct {
 	// roomStorage is used to store the rooms
 	roomStorage rStorage.Storage
 
+	// cache is used to store the validation results
+	cache cache.Cache
+
 	logger *zap.Logger
 }
 
 func NewWebSocketHandler(
 	clientsStorage uStorage.Storage,
 	roomStorage rStorage.Storage,
+	cache cache.Cache,
 	jwtHeaderName string,
 	jwtValidationURL string,
 	boardValidationURL string,
@@ -73,6 +76,7 @@ func NewWebSocketHandler(
 		jwtHeaderName:      jwtHeaderName,
 		jwtValidationURL:   jwtValidationURL,
 		boardValidationURL: boardValidationURL,
+		cache:              cache,
 		logger:             logger,
 	}
 }
@@ -117,21 +121,32 @@ func (ws *WebSocketHandler) messageHandler(conn *websocket.Conn, msg []byte) {
 
 //nolint:cyclop
 func (ws *WebSocketHandler) setLeader(request MessageSetLeaderRequest) {
-	// Get the UserID from the JWT token
-	userID, err := ws.validateJWT(request.Jwt)
-	if err != nil {
-		ws.logger.Debug("Failed to validate JWT", zap.Error(err))
-		return
+	var userID string
+
+	// Check if the user is in cache
+	if v, err := ws.cache.Get(request.Jwt); err != nil && v == nil {
+		// Get the UserID from the JWT token
+		userID, err = ws.validateJWT(request.Jwt)
+		if err != nil {
+			ws.logger.Debug("Failed to validate JWT", zap.Error(err))
+			return
+		}
+
+		// Check if the user has access to the board
+		if !ws.validateBoardAccess(request.BoardID, request.Jwt) {
+			ws.logger.Debug("User doesn't have access to the board", zap.String("userID", userID), zap.String("boardID", request.BoardID))
+			return
+		}
+
+		// Store the validation result
+		_ = ws.cache.Set(request.Jwt, userID)
+	} else {
+		userID = v.(string)
 	}
 
 	// Check if the user is registered
 	u, err := ws.userStorage.Get(userID)
 	if err != nil {
-		return
-	}
-
-	// Check if the user has access to the board
-	if !ws.validateBoardAccess(request.BoardID, request.Jwt) {
 		return
 	}
 
@@ -181,20 +196,31 @@ func (ws *WebSocketHandler) setLeader(request MessageSetLeaderRequest) {
 
 //nolint:cyclop
 func (ws *WebSocketHandler) sendDataToRoom(request MessageNewDataRequest) {
-	// Get the UserID from the JWT token
-	userID, err := ws.validateJWT(request.Jwt)
-	if err != nil {
-		ws.logger.Debug("Failed to validate JWT", zap.Error(err))
-		return
+	var userID string
+
+	// Check if the user is in cache
+	if v, err := ws.cache.Get(request.Jwt); err != nil && v == nil {
+		// Get the UserID from the JWT token
+		userID, err = ws.validateJWT(request.Jwt)
+		if err != nil {
+			ws.logger.Debug("Failed to validate JWT", zap.Error(err))
+			return
+		}
+
+		// Check if the user has access to the board
+		if !ws.validateBoardAccess(request.BoardID, request.Jwt) {
+			ws.logger.Debug("User doesn't have access to the board", zap.String("userID", userID), zap.String("boardID", request.BoardID))
+			return
+		}
+
+		// Store the validation result
+		_ = ws.cache.Set(request.Jwt, userID)
+	} else {
+		userID = v.(string)
 	}
 
 	// Check if the user is registered
 	if _, err := ws.userStorage.Get(userID); err != nil {
-		return
-	}
-
-	// Check if the user has access to the board
-	if !ws.validateBoardAccess(request.BoardID, request.Jwt) {
 		return
 	}
 
@@ -249,7 +275,7 @@ func (ws *WebSocketHandler) sendDataToRoom(request MessageNewDataRequest) {
 
 func (ws *WebSocketHandler) unregisterUser(conn *websocket.Conn) {
 	// Get the user
-	u, _ := ws.userStorage.GetWhere(func(u *user.User) bool {
+	u, _ := ws.userStorage.GetWhere(func(u *models.User) bool {
 		return u.Conn == conn
 	})
 	if u == nil {
@@ -298,18 +324,27 @@ func (ws *WebSocketHandler) unregisterUser(conn *websocket.Conn) {
 }
 
 func (ws *WebSocketHandler) registerUser(conn *websocket.Conn, request MessageConnectRequest) {
-	// Get the UserID from the JWT token
-	userID, err := ws.validateJWT(request.Jwt)
-	if err != nil {
-		ws.logger.Debug("Failed to validate JWT", zap.String("userID", userID), zap.Error(err))
-		return
-	}
+	var userID string
 
-	// Check if the user has access to the board
-	if !ws.validateBoardAccess(request.BoardID, request.Jwt) {
-		ws.logger.Debug("User not allowed to access this board",
-			zap.String("userID", userID), zap.String("boardID", request.BoardID))
-		return
+	// Check if the user is in cache
+	if v, err := ws.cache.Get(request.Jwt); err != nil && v == nil {
+		// Get the UserID from the JWT token
+		userID, err = ws.validateJWT(request.Jwt)
+		if err != nil {
+			ws.logger.Debug("Failed to validate JWT", zap.Error(err))
+			return
+		}
+
+		// Check if the user has access to the board
+		if !ws.validateBoardAccess(request.BoardID, request.Jwt) {
+			ws.logger.Debug("User doesn't have access to the board", zap.String("userID", userID), zap.String("boardID", request.BoardID))
+			return
+		}
+
+		// Store the validation result
+		_ = ws.cache.Set(request.Jwt, userID)
+	} else {
+		userID = v.(string)
 	}
 
 	// Check if the user is already connected
@@ -318,19 +353,19 @@ func (ws *WebSocketHandler) registerUser(conn *websocket.Conn, request MessageCo
 	}
 
 	// Create a room if it doesn't exist
-	var currentRoom *room.Room
+	var currentRoom *models.Room
 	if currentRoom, _ = ws.roomStorage.Get(request.BoardID); currentRoom == nil {
-		currentRoom = room.NewRoom(request.BoardID)
+		currentRoom = models.NewRoom(request.BoardID)
 		_ = ws.roomStorage.Set(request.BoardID, currentRoom)
 	}
 
 	// Store the user
-	newUser := &user.User{
+	newUser := &models.User{
 		ID:     userID,
 		RoomID: request.BoardID,
 		Conn:   conn,
 	}
-	err = ws.userStorage.Set(newUser.ID, newUser)
+	err := ws.userStorage.Set(newUser.ID, newUser)
 	if err != nil {
 		return
 	}

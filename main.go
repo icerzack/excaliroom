@@ -1,6 +1,9 @@
 package main
 
 import (
+	"fmt"
+	"github.com/Icerzack/excalidraw-ws-go/internal/utils"
+	"go.uber.org/zap/zapcore"
 	"os"
 
 	"go.uber.org/zap"
@@ -10,24 +13,31 @@ import (
 )
 
 func main() {
-	logger, _ := zap.NewDevelopment()
-	//nolint:errcheck
-	defer logger.Sync()
-
 	configPath := os.Getenv("CONFIG_PATH")
 
-	appConfig, err := cmd.ParseConfig(configPath, logger)
+	appConfig, err := cmd.ParseConfig(configPath)
 	if err != nil {
 		return
 	}
 
-	switch appConfig.Apps.LogLevel {
-	case "DEBUG":
-		logger, _ = zap.NewDevelopment()
+	var level zapcore.Level
+	var writeToFiles bool
+
+	switch appConfig.Logging.Level {
 	case "INFO":
-		logger, _ = zap.NewProduction()
-	default:
-		logger = zap.NewNop()
+		level = zap.InfoLevel
+	case "DEBUG":
+		level = zap.DebugLevel
+	}
+
+	if appConfig.Logging.WriteToFile {
+		writeToFiles = true
+	}
+
+	logger, err := utils.NewCustomLogger(level, writeToFiles)
+	if err != nil {
+		fmt.Println("unable to create logger", err)
+		return
 	}
 
 	restApp := rest.NewRest(&rest.Config{
@@ -37,6 +47,7 @@ func main() {
 		BoardValidationURL: appConfig.Apps.Rest.Validation.BoardValidationURL,
 		UsersStorageType:   appConfig.Storage.Users.Type,
 		RoomsStorageType:   appConfig.Storage.Rooms.Type,
+		CacheType:          appConfig.Cache.Type,
 		Logger:             logger,
 	})
 

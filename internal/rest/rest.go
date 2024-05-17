@@ -3,6 +3,8 @@ package rest
 import (
 	"context"
 	"errors"
+	"github.com/Icerzack/excalidraw-ws-go/internal/cache"
+	"github.com/Icerzack/excalidraw-ws-go/internal/cache/inmemory"
 	"net/http"
 	"strconv"
 
@@ -41,9 +43,12 @@ func (rest *Rest) Start() {
 
 	// Define the /ws endpoint
 	usersStorage, roomsStorage := rest.defineStorage()
+	selectedCache := rest.defineCache()
+
 	wsServer := ws.NewWebSocketHandler(
 		usersStorage,
 		roomsStorage,
+		selectedCache,
 		rest.config.JwtHeaderName,
 		rest.config.JwtValidationURL,
 		rest.config.BoardValidationURL,
@@ -68,9 +73,9 @@ func (rest *Rest) Stop() {
 	}
 }
 
-func (rest *Rest) defineStorage() (*inmemUser.Storage, *inmemRoom.Storage) {
-	var usersStorage *inmemUser.Storage
-	var roomsStorage *inmemRoom.Storage
+func (rest *Rest) defineStorage() (user.Storage, room.Storage) {
+	var usersStorage user.Storage
+	var roomsStorage room.Storage
 
 	switch rest.config.UsersStorageType {
 	case user.InMemoryStorageType:
@@ -90,4 +95,19 @@ func (rest *Rest) defineStorage() (*inmemUser.Storage, *inmemRoom.Storage) {
 	}
 
 	return usersStorage, roomsStorage
+}
+
+func (rest *Rest) defineCache() cache.Cache {
+	var c cache.Cache
+
+	switch rest.config.CacheType {
+	case room.InMemoryStorageType:
+		rest.config.Logger.Info("Using in-memory cache")
+		c = inmemory.NewCache(rest.config.Logger)
+	default:
+		rest.config.Logger.Info("Using in-memory cache")
+		c = inmemory.NewCache(rest.config.Logger)
+	}
+
+	return c
 }
