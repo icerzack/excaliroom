@@ -6,14 +6,16 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 
-	"github.com/Icerzack/excalidraw-ws-go/internal/rest/ws"
-	"github.com/Icerzack/excalidraw-ws-go/internal/storage/room"
-	inmemRoom "github.com/Icerzack/excalidraw-ws-go/internal/storage/room/inmemory"
-	"github.com/Icerzack/excalidraw-ws-go/internal/storage/user"
-	inmemUser "github.com/Icerzack/excalidraw-ws-go/internal/storage/user/inmemory"
+	"github.com/Icerzack/excaliroom/internal/cache"
+	"github.com/Icerzack/excaliroom/internal/cache/inmemory"
+	"github.com/Icerzack/excaliroom/internal/rest/ws"
+	"github.com/Icerzack/excaliroom/internal/storage/room"
+	inmemRoom "github.com/Icerzack/excaliroom/internal/storage/room/inmemory"
+	"github.com/Icerzack/excaliroom/internal/storage/user"
+	inmemUser "github.com/Icerzack/excaliroom/internal/storage/user/inmemory"
 )
 
 type Rest struct {
@@ -41,9 +43,13 @@ func (rest *Rest) Start() {
 
 	// Define the /ws endpoint
 	usersStorage, roomsStorage := rest.defineStorage()
+	selectedCache := rest.defineCache()
+
 	wsServer := ws.NewWebSocketHandler(
 		usersStorage,
 		roomsStorage,
+		selectedCache,
+		rest.config.CacheTTL,
 		rest.config.JwtHeaderName,
 		rest.config.JwtValidationURL,
 		rest.config.BoardValidationURL,
@@ -68,9 +74,9 @@ func (rest *Rest) Stop() {
 	}
 }
 
-func (rest *Rest) defineStorage() (*inmemUser.Storage, *inmemRoom.Storage) {
-	var usersStorage *inmemUser.Storage
-	var roomsStorage *inmemRoom.Storage
+func (rest *Rest) defineStorage() (user.Storage, room.Storage) {
+	var usersStorage user.Storage
+	var roomsStorage room.Storage
 
 	switch rest.config.UsersStorageType {
 	case user.InMemoryStorageType:
@@ -90,4 +96,19 @@ func (rest *Rest) defineStorage() (*inmemUser.Storage, *inmemRoom.Storage) {
 	}
 
 	return usersStorage, roomsStorage
+}
+
+func (rest *Rest) defineCache() cache.Cache {
+	var c cache.Cache
+
+	switch rest.config.CacheType {
+	case room.InMemoryStorageType:
+		rest.config.Logger.Info("Using in-memory cache")
+		c = inmemory.NewCache(rest.config.Logger)
+	default:
+		rest.config.Logger.Info("Using in-memory cache")
+		c = inmemory.NewCache(rest.config.Logger)
+	}
+
+	return c
 }

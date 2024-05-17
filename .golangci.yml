@@ -61,7 +61,7 @@ linters-settings:
     sections:
       - standard
       - default
-      - prefix(github.com/Icerzack/excalidraw-ws-go)
+      - prefix(github.com/Icerzack/excaliroom)
 
   godot:
     scope: declarations
@@ -69,7 +69,7 @@ linters-settings:
       - '^ @'
 
   goimports:
-    local-prefixes: github.com/Icerzack/excalidraw-ws-go
+    local-prefixes: github.com/Icerzack/excaliroom
 
   lll:
     tab-width: 4

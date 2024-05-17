@@ -1,10 +1,8 @@
-package room
+package models
 
 import (
 	"crypto/rand"
 	"sync"
-
-	"github.com/Icerzack/excalidraw-ws-go/internal/user"
 )
 
 type Room struct {
@@ -15,7 +13,7 @@ type Room struct {
 	BoardID string
 
 	// Users is a map of users in the room
-	Users []*user.User
+	Users []*User
 
 	// LeaderID is the unique identifier of the leader of the room
 	LeaderID string
@@ -37,14 +35,14 @@ func NewRoom(boardID string) *Room {
 	return &Room{
 		ID:        generateRandomID(),
 		BoardID:   boardID,
-		Users:     make([]*user.User, 0),
+		Users:     make([]*User, 0),
 		LeaderID:  "0",
 		mtx:       &sync.RWMutex{},
 		RoomMutex: &sync.Mutex{},
 	}
 }
 
-func (r *Room) AddUser(newUser *user.User) {
+func (r *Room) AddUser(newUser *User) {
 	// Add user to the room
 	r.mtx.Lock()
 	defer r.mtx.Unlock()
@@ -63,7 +61,7 @@ func (r *Room) RemoveUser(userID string) {
 	}
 }
 
-func (r *Room) GetUsers() []*user.User {
+func (r *Room) GetUsers() []*User {
 	// Get users of the room
 	r.mtx.RLock()
 	defer r.mtx.RUnlock()
