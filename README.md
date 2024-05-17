@@ -61,11 +61,12 @@ Currently, the `apps` section contains the following configurations:
         - `jwt_header_name`: The name of the header, in which `Excaliroom` will set the JWT token from client.
         - `jwt_validation_url`: The URL to validate the JWT token, which will be used to authenticate the user.
         - `board_validation_url`: The URL to validate the access to the board with the JWT token.
-- `storage`: The storage configuration.
-    - `users`: The user storage configuration.
-        - `type`: The type of the storage. Currently, only `in-memory` is supported.
-    - `rooms`: The room storage configuration.
-        - `type`: The type of the storage. Currently, only `in-memory` is supported.
+
+The `storage` section contains the following configurations:
+- `users`: The user storage configuration. It specifies where the server will store the user data.
+    - `type`: The type of the storage. Currently, only `in-memory` is supported.
+- `rooms`: The room storage configuration. It specifies where the server will store the room data.
+    - `type`: The type of the storage. Currently, only `in-memory` is supported.
 
 ### JWT and Board URLs
 
