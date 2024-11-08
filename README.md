@@ -38,7 +38,6 @@ You can find an example configuration file [here](./config-example.yaml).
 
 ```yaml
 apps:
-  log_level: "DEBUG"
   rest:
     port: 8080
     validation:
@@ -46,27 +45,40 @@ apps:
       jwt_validation_url: "<YOUR_JWT_VALIDATION_URL>"
       board_validation_url: "<YOUR_BOARD_VALIDATION_URL>"
 
+logging:
+  level: "DEBUG"
+  write_to_file: false
+
 storage:
   users:
     type: "in-memory"
   rooms:
     type: "in-memory"
+
+cache:
+  type: "in-memory"
+  ttl: 300
 ```
 
 Currently, the `apps` section contains the following configurations:
-- `log_level`: The log level of the server. It can be one of the following: `DEBUG`, `INFO` (More levels will be added in the future).
 - `rest`: The REST API configuration.
     - `port`: The port of the REST API.
     - `validation`: The JWT validation configuration.
         - `jwt_header_name`: The name of the header, in which `Excaliroom` will set the JWT token from client.
         - `jwt_validation_url`: The URL to validate the JWT token, which will be used to authenticate the user.
         - `board_validation_url`: The URL to validate the access to the board with the JWT token.
+     
+- `logging`: The log level of the server. It can be one of the following: `DEBUG`, `INFO`.
 
 The `storage` section contains the following configurations:
 - `users`: The user storage configuration. It specifies where the server will store the user data.
     - `type`: The type of the storage. Currently, only `in-memory` is supported.
 - `rooms`: The room storage configuration. It specifies where the server will store the room data.
     - `type`: The type of the storage. Currently, only `in-memory` is supported.
+
+The `cache` section contains the following configurations:
+- `type`: The type of the cache. Currently, only `in-memory` is supported.
+- `ttl`: Cache duration time. In seconds.
 
 ### JWT and Board URLs
 
