@@ -1,7 +1,7 @@
 package ws
 
 type JWTValidationResponse struct {
-	ID int `json:"id"`
+	ID string `json:"id"`
 }
 
 type Message struct {

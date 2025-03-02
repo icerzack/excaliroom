@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"strconv"
 
 	"github.com/gorilla/websocket"
 	"go.uber.org/zap"
@@ -21,6 +20,7 @@ import (
 var (
 	ErrInvalidMessage = errors.New("invalid message")
 	ErrValidatingJWT  = errors.New("failed to validate jwt")
+	ErrInvalidJWT     = errors.New("invalid jwt")
 )
 
 const (
@@ -390,12 +390,14 @@ func (ws *WebSocketHandler) sendUserDisconnected(request MessageUserDisconnected
 }
 
 func (ws *WebSocketHandler) validateJWT(jwt string) (string, error) {
-	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, ws.jwtValidationURL, nil)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, ws.jwtValidationURL, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create validation request: %w", err)
+	}
 	req.Header.Set(ws.jwtHeaderName, jwt)
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		ws.logger.Error("Failed to send jwt validation request", zap.Error(err))
 		return "", fmt.Errorf("failed to send validation request: %w", err)
 	}
 	defer resp.Body.Close()
@@ -409,21 +411,22 @@ func (ws *WebSocketHandler) validateJWT(jwt string) (string, error) {
 		return "", fmt.Errorf("internal server error: %w", ErrValidatingJWT)
 	}
 
-	// Decode the JWTValidationResponse
 	var jwtResponse JWTValidationResponse
 	err = json.NewDecoder(resp.Body).Decode(&jwtResponse)
 	if err != nil {
-		ws.logger.Error("Failed to decode JWT response", zap.Error(err))
 		return "", fmt.Errorf("failed to decode JWT response: %w", err)
 	}
+	if jwtResponse.ID == "0" {
+		return "", ErrInvalidJWT
+	}
 
-	return strconv.Itoa(jwtResponse.ID), nil
+	return jwtResponse.ID, nil
 }
 
 func (ws *WebSocketHandler) validateBoardAccess(boardID, jwt string) bool {
 	fullURL, err := url.JoinPath(ws.boardValidationURL, boardID)
 	if err != nil {
-		ws.logger.Error("Failed to join URL", zap.Error(err))
+		ws.logger.Error("failed to join URL", zap.Error(err))
 		return false
 	}
 	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, fullURL, nil)
@@ -431,7 +434,7 @@ func (ws *WebSocketHandler) validateBoardAccess(boardID, jwt string) bool {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		ws.logger.Error("Failed to send board validation request", zap.Error(err))
+		ws.logger.Error("failed to send board validation request", zap.Error(err))
 		return false
 	}
 	defer resp.Body.Close()
@@ -482,34 +485,34 @@ func (ws *WebSocketHandler) cacheOrValidate(jwt, boardID string) (string, error)
 	// Check if the user is in cache
 	if v, err := ws.cache.Get(jwt); v == nil {
 		if err != nil {
-			ws.logger.Error("Failed to get from cache", zap.Error(err))
 			return "", fmt.Errorf("failed to get from cache: %w", err)
 		}
 		// Get the UserID from the JWT token
 		userID, err = ws.validateJWT(jwt)
 		if err != nil {
-			ws.logger.Error("Failed to validate JWT", zap.Error(err))
 			return "", fmt.Errorf("failed to validate JWT: %w", err)
 		}
 
 		// Check if the user has access to the board
 		if !ws.validateBoardAccess(boardID, jwt) {
-			ws.logger.Debug("User doesn't have access to the board",
-				zap.String("userID", userID), zap.String("boardID", boardID))
-			return "", fmt.Errorf("user doesn't have access to the board: %w", err)
+			return "", fmt.Errorf(
+				"user '%s' doesn't have access to the board '%s': %w",
+				userID,
+				boardID,
+				err,
+			)
 		}
 
 		// Store the validation result
 		_ = ws.cache.SetWithTTL(jwt, userID, ws.cacheTTLInSeconds)
 	} else {
 		if err != nil {
-			ws.logger.Error("Failed to get from cache", zap.Error(err))
 			return "", fmt.Errorf("failed to get from cache: %w", err)
 		}
 		var ok bool
 		userID, ok = v.(string)
 		if !ok {
-			return "", fmt.Errorf("failed to get from cache: %w", err)
+			return "", fmt.Errorf("failed to parse userID to string: %w", err)
 		}
 	}
 	return userID, nil
